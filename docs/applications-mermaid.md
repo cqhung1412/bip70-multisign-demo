@@ -2,7 +2,7 @@
 
 ```mermaid
 flowchart LR
-    A[Customer Selects Item] -->|Initiates Payment|> B[Merchant Generates BIP70 Request]
+    A[Customer Selects Item] --|Initiates Payment|--- B[Merchant Generates BIP70 Request]
     B -->|Signed Request with Multisig Address|> C[Customer's Wallet]
     C -->|Verifies Merchant Identity & Payment Details|> D[Customer Approves Payment]
     D -->|Sends Payment to Multisig Address|> E[2-of-3 Multisig Escrow]
