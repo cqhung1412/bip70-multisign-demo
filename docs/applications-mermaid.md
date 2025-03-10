@@ -43,27 +43,50 @@ sequenceDiagram
     Exchange->>BitcoinNetwork: Broadcast signed transaction
     BitcoinNetwork->>User: Receive funds
     Note over User,Exchange: Withdrawal confirmation sent to user
-
 ```
 
 ## Application 3: Decentralized Crowdfunding Escrow with Refund Mechanism
 
 ```mermaid
-flowchart LR
-    A[Donor Contributes via BIP70] -->|Funds to 3-of-5 Multisig Escrow|> B[Crowdfunding Platform]
-    B -->|Tracks Project Milestones|> C[Validators Verify Progress]
-    C -->|Signatures Released if Milestones Met|> D[Funds Released to Project Creator]
-    D -->|Refund Initiated if Milestones Missed|> E[Refund via BIP70 Refund Address]
+sequenceDiagram
+    participant Donor as Donor
+    participant Platform as Crowdfunding Platform
+    participant Validator1 as Validator 1
+    participant Validator2 as Validator 2
+    participant ProjectCreator as Project Creator
+    participant BitcoinNetwork as Bitcoin Network
+
+    Note over Donor,Platform: Donor contributes to project via BIP70
+    Donor->>BitcoinNetwork: Send funds to 3-of-5 multisig escrow
+    BitcoinNetwork->>Platform: Funds locked in escrow
+    Platform->>Validator1: Notify validators of project progress
+    Validator1->>Platform: Verify project milestones
+    Validator2->>Platform: Verify project milestones
+    Platform->>ProjectCreator: Request signatures for fund release
+    Validator1->>Platform: Sign transaction
+    Validator2->>Platform: Sign transaction
+    Platform->>BitcoinNetwork: Release funds to project creator
+    BitcoinNetwork->>ProjectCreator: Receive funds
+    Note over Platform,Donor: Refund initiated if milestones missed
 ```
 
 ## Application 4: Institutional Payroll Management with Time-Locked Multisig Transactions
 
 ```mermaid
-flowchart LR
-    A[HR Generates BIP70 Payment Requests] -->|Structured Payment Details|> B[Finance and Compliance Review]
-    B -->|Approves and Signs with 2-of-3 Multisig|> C[Time-Locked Multisig Wallet]
-    C -->|Funds Released on Scheduled Payday|> D[Employee Receives Salary]
-    D -->|Transaction Confirmation|> E[Payroll System Updates]
-```
-```
+sequenceDiagram
+    participant HR as HR Department
+    participant Finance as Finance Department
+    participant Compliance as Compliance Department
+    participant Employee as Employee
+    participant BitcoinNetwork as Bitcoin Network
 
+    Note over HR,Finance: HR generates BIP70 payment requests
+    HR->>Finance: Send structured payment details
+    Finance->>Compliance: Request approval and signature
+    Compliance->>Finance: Sign transaction
+    Finance->>Finance: Sign transaction
+    Finance->>BitcoinNetwork: Broadcast time-locked multisig transaction
+    BitcoinNetwork->>Employee: Receive salary on scheduled payday
+    Note over Employee,HR: Payroll system updated with transaction confirmation
+
+```
