@@ -26,11 +26,24 @@ sequenceDiagram
 ## Application 2: Cryptocurrency Exchange Cold Storage with BIP70 Withdrawals
 
 ```mermaid
-flowchart LR
-    A[User Requests Withdrawal] -->|BIP70 Withdrawal Request|> B[Exchange Verifies Request]
-    B -->|Approves and Signs with 2-of-3 Multisig|> C[Exchange's Multisig Cold Wallet]
-    C -->|Requires Signatures from Administrators|> D[Transaction Broadcasted to Network]
-    D -->|User Receives Funds|> E[Withdrawal Confirmation]
+sequenceDiagram
+    participant User as User
+    participant Exchange as Exchange
+    participant Admin1 as Exchange Admin 1
+    participant Admin2 as Exchange Admin 2
+    participant BitcoinNetwork as Bitcoin Network
+
+    Note over User,Exchange: User requests withdrawal
+    User->>Exchange: Submit BIP70 withdrawal request
+    Exchange->>Exchange: Verify request details
+    Exchange->>Admin1: Request signature for withdrawal
+    Admin1->>Exchange: Sign transaction
+    Exchange->>Admin2: Request signature for withdrawal
+    Admin2->>Exchange: Sign transaction
+    Exchange->>BitcoinNetwork: Broadcast signed transaction
+    BitcoinNetwork->>User: Receive funds
+    Note over User,Exchange: Withdrawal confirmation sent to user
+
 ```
 
 ## Application 3: Decentralized Crowdfunding Escrow with Refund Mechanism
