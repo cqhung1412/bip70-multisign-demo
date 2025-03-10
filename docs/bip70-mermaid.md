@@ -12,8 +12,9 @@ sequenceDiagram
     Wallet->>Wallet: Validate signature and display details
     Wallet->>Customer: Authorize?
     Customer->>Wallet: Confirm payment
-    Wallet->>Network: Broadcast Bitcoin transaction
     Wallet->>Merchant: Send transaction copy
+    Wallet->>Network: Broadcast Bitcoin transaction
     Merchant->>Wallet: Send PaymentACK (acknowledgment)
-    Wallet->>Customer: Display payment confirmation
+    Merchant<->Network: Update transactions
+    Wallet->>Customer: (Optional) Display payment confirmation
 ```
