@@ -14,7 +14,7 @@ sequenceDiagram
     Note over Wallet: Create multisig address (2-of-3)
     Wallet->>Blockchain: Receive funds
 
-    Note over User1,User2,User3: Transaction proposal
+    Note over User1,User3: Transaction proposal
     User1->>Wallet: Sign transaction
     User2->>Wallet: Sign transaction
 
