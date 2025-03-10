@@ -15,6 +15,6 @@ sequenceDiagram
     Wallet->>Merchant: Send transaction copy
     Wallet->>Network: Broadcast Bitcoin transaction
     Merchant->>Wallet: Send PaymentACK (acknowledgment)
-    Merchant<->Network: Update transactions
+    Merchant<<->>Network: Update transactions
     Wallet->>Customer: (Optional) Display payment confirmation
 ```
