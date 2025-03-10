@@ -218,7 +218,7 @@ curl -X POST http://localhost:8080/api/pay/req-1741623230106850415 \
   -H "Content-Type: application/bitcoin-payment" \
   -d '{
     "merchant_data": "eyJvcmRlcl9pZCI6InJlcS0xNzQxNjIzMjMwMTA2ODUwNDE1In0=",
-    "transactions": ["26dd4663518b3e24872fd5635fd889a8a0e1c232b8d488868ac378a0a2d28fb2"],
+    "transactions": ["1"],
     "refund_to": [],
     "memo": "Payment for escrow #escrow-1741623230106929015"
   }' | jq
@@ -258,7 +258,7 @@ curl -s -D - http://localhost:8080/api/pay/req-1741623230106850415 \
   -H "Content-Type: application/bitcoin-payment" \
   -d '{
     "merchant_data": "eyJvcmRlcl9pZCI6InJlcS0xNzQxNjIzMjMwMTA2ODUwNDE1In0=",
-    "transactions": ["26dd4663518b3e24872fd5635fd889a8a0e1c232b8d488868ac378a0a2d28fb1"],
+    "transactions": ["1"],
     "refund_to": [],
     "memo": "Payment for escrow #escrow-1741623230106929015"
   }' | grep -i "^Content-Type:"
@@ -277,7 +277,7 @@ curl -X POST http://localhost:8080/api/escrow/verify-payment \
   -H "Content-Type: application/json" \
   -d '{
     "escrow_id": "escrow-1741623230106929015",
-    "txid": "26dd4663518b3e24872fd5635fd889a8a0e1c232b8d488868ac378a0a2d28fb1"
+    "txid": "1"
   }'
 ```
 
@@ -292,7 +292,7 @@ curl -X POST http://localhost:8080/api/escrow/verify-payment \
   "escrow_pubkey":"02a8bee3df56e1362c4db0154b4884a06edcc72e1d421b7c56c694a2df9d8ee867",
   "expires_at":"2025-03-11T23:13:50.106928915+07:00",
   "multisig_address":"2N7DRF4Ny72Ws7p2TwQbd8J7oK4RHiFuLhX",
-  "payment_txid":"26dd4663518b3e24872fd5635fd889a8a0e1c232b8d488868ac378a0a2d28fb1",
+  "payment_txid":"1",
   "seller_pubkey":"03d70c8915a02010d575a9ae39f7689830822780a606cb6faa4b1d4dbd277240b6",
   "status":"funded"
 }
@@ -301,7 +301,7 @@ curl -X POST http://localhost:8080/api/escrow/verify-payment \
 
 The `txid` is the transaction ID from the Bitcoin transaction you submitted in step 3. For testing purposes, the following transaction IDs are pre-validated in the system:
 
-1. `26dd4663518b3e24872fd5635fd889a8a0e1c232b8d488868ac378a0a2d28fb1`
+1. `1`
 2. `3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b`
 
 Using any other transaction ID will result in a verification error, as the system performs basic validation. The verification checks:
@@ -469,7 +469,7 @@ curl -X GET http://localhost:8080/api/escrow/get?id=escrow-1741623230106929015 |
     "request_id": "req-1741623230106850415",
     "callback_url": "http://localhost:8080/api/callback/req-1741623230106850415"
   },
-  "payment_txid": "26dd4663518b3e24872fd5635fd889a8a0e1c232b8d488868ac378a0a2d28fb1",
+  "payment_txid": "1",
   "release_parties": [
     "seller",
     "escrow"
