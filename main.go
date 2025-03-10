@@ -17,6 +17,10 @@ func setupRoutes() {
 	http.HandleFunc("/api/escrow/verify-payment", escrow.VerifyPayment)
 	http.HandleFunc("/api/escrow/get", escrow.GetEscrow)
 
+	// BIP70 Payment Protocol endpoints
+	http.HandleFunc("/api/pay/request/", escrow.HandlePaymentRequest) // endpoint for getting payment requests
+	http.HandleFunc("/api/pay/", escrow.HandlePayment)                // endpoint for receiving payments
+
 	// Health check endpoint
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		utils.WriteJSONResponse(w, http.StatusOK, map[string]string{"status": "healthy"})
@@ -36,11 +40,15 @@ func setupRoutes() {
 			"version":     "1.0.0",
 			"description": "A Bitcoin escrow service using BIP70 and MultiSign",
 			"endpoints": []string{
+				// Escrow endpoints
 				"/api/escrow/create",
 				"/api/escrow/release",
 				"/api/escrow/refund",
 				"/api/escrow/verify-payment",
 				"/api/escrow/get",
+				// BIP70 endpoints
+				"/api/pay/request/{requestID}",
+				"/api/pay/{requestID}",
 				"/health",
 			},
 		})

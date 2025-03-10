@@ -1,8 +1,13 @@
 package escrow
 
 import (
+	"encoding/json"
 	"escrow-service/utils"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"strings"
 	"time"
 )
 
@@ -45,12 +50,43 @@ func CreateCustomBIP70PaymentRequest(address string, amount int64, memo string, 
 
 	// Set custom memo if provided
 	if memo != "" {
-		paymentRequest.Memo = memo
+		// Update the memo in the payment details
+		details, err := utils.DeserializePaymentDetails(paymentRequest.SerializedDetails)
+		if err != nil {
+			return utils.PaymentRequest{}, fmt.Errorf("failed to deserialize payment details: %v", err)
+		}
+
+		details.Memo = memo
+
+		// Re-serialize the payment details
+		serializedDetails, err := utils.SerializePaymentDetails(details)
+		if err != nil {
+			return utils.PaymentRequest{}, fmt.Errorf("failed to serialize payment details: %v", err)
+		}
+
+		paymentRequest.SerializedDetails = serializedDetails
 	}
 
 	// Set custom expiry time if provided
 	if expiryHours > 0 {
-		paymentRequest.Expires = time.Now().Add(time.Duration(expiryHours) * time.Hour)
+		expiryTime := time.Now().Add(time.Duration(expiryHours) * time.Hour)
+		paymentRequest.Expires = expiryTime
+
+		// Update the expiry in the payment details
+		details, err := utils.DeserializePaymentDetails(paymentRequest.SerializedDetails)
+		if err != nil {
+			return utils.PaymentRequest{}, fmt.Errorf("failed to deserialize payment details: %v", err)
+		}
+
+		details.Expires = expiryTime.Unix()
+
+		// Re-serialize the payment details
+		serializedDetails, err := utils.SerializePaymentDetails(details)
+		if err != nil {
+			return utils.PaymentRequest{}, fmt.Errorf("failed to serialize payment details: %v", err)
+		}
+
+		paymentRequest.SerializedDetails = serializedDetails
 	}
 
 	return paymentRequest, nil
@@ -63,11 +99,160 @@ func VerifyBIP70Payment(paymentRequestID string, txID string) (bool, error) {
 		return false, fmt.Errorf("payment request ID and transaction ID are required")
 	}
 
-	// Call the utility function to verify the transaction
+	// In a real implementation, you would:
+	// 1. Look up the payment request in your database
+	// 2. Verify the payment request exists and hasn't already been paid
+	// 3. Check the transaction satisfies the payment criteria (amounts, addresses, etc.)
+
+	// For our purpose, we'll just check if the txID is valid and in our "blockchain"
 	verified, err := utils.VerifyTransaction(txID)
 	if err != nil {
-		return false, fmt.Errorf("failed to verify transaction: %v", err)
+		return false, fmt.Errorf("transaction verification failed: %v", err)
 	}
 
+	// Additional checks could be added here, such as:
+	// - Ensuring the transaction pays to the correct address(es)
+	// - Checking the payment amount matches the requested amount
+	// - Verifying the transaction has enough confirmations
+
 	return verified, nil
+}
+
+// HandlePaymentRequest handles a BIP70 payment request
+func HandlePaymentRequest(w http.ResponseWriter, r *http.Request) {
+	// Only allow GET requests
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get the request ID from the URL
+	// Expected format: /api/pay/request/{requestID}
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 4 {
+		http.Error(w, "Invalid request URL", http.StatusBadRequest)
+		return
+	}
+
+	// requestID := parts[len(parts)-1]
+
+	// In a real implementation, you would fetch the payment request from a database
+	// For demo purposes, we'll create a new one
+	address := "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx" // Example testnet address
+	amount := int64(100000)                                 // 0.001 BTC in satoshis
+
+	paymentRequest, err := CreateBIP70PaymentRequest(address, amount)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create payment request: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Set the correct Content-Type header according to BIP70
+	w.Header().Set("Content-Type", "application/bitcoin-paymentrequest")
+
+	// Serialize the payment request
+	// In a real implementation, this would use protobuf serialization
+	requestBytes, err := json.Marshal(paymentRequest)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to serialize payment request: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(requestBytes)
+}
+
+// HandlePayment handles a BIP70 payment message
+func HandlePayment(w http.ResponseWriter, r *http.Request) {
+	// Only allow POST requests
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Check Content-Type header
+	contentType := r.Header.Get("Content-Type")
+	if contentType != "application/bitcoin-payment" {
+		http.Error(w, "Invalid Content-Type, expected application/bitcoin-payment", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	// Read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to read request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parse the payment
+	payment, err := utils.DeserializePayment(body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse payment: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Validate the payment
+	if len(payment.Transactions) == 0 {
+		http.Error(w, "Payment contains no transactions", http.StatusBadRequest)
+		return
+	}
+
+	// In a real implementation, you would:
+	// 1. Verify that the transaction satisfies the payment request
+	// 2. Broadcast the transaction to the Bitcoin network (if not already done)
+	// 3. Update your database with the payment status
+
+	// Create a PaymentACK message
+	ack := utils.PaymentACK{
+		Payment: *payment,
+		Memo:    "Thank you for your payment",
+	}
+
+	// Serialize the PaymentACK
+	ackBytes, err := utils.SerializePaymentACK(&ack)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to serialize PaymentACK: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Set the correct Content-Type header according to BIP70
+	w.Header().Set("Content-Type", "application/bitcoin-paymentack")
+
+	w.Write(ackBytes)
+}
+
+// Utility function to extract transaction details from a BIP70 payment
+func extractTransactionFromPayment(payment *utils.Payment) (string, error) {
+	if len(payment.Transactions) == 0 {
+		return "", fmt.Errorf("payment contains no transactions")
+	}
+
+	// In a real implementation, you would parse and validate the transaction
+	// For demo purposes, we'll just return a mock transaction ID
+	return fmt.Sprintf("tx-%d", time.Now().UnixNano()), nil
+}
+
+// ProcessPayment processes a BIP70 payment
+func ProcessPayment(paymentData []byte) (*utils.PaymentACK, error) {
+	// Parse the payment
+	payment, err := utils.DeserializePayment(paymentData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse payment: %v", err)
+	}
+
+	// Extract transaction details
+	txID, err := extractTransactionFromPayment(payment)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract transaction: %v", err)
+	}
+
+	// Log the transaction (in a real system, you'd store this in a database)
+	log.Printf("Received payment with transaction: %s", txID)
+
+	// Create a PaymentACK
+	ack := &utils.PaymentACK{
+		Payment: *payment,
+		Memo:    "Thank you for your payment. Your transaction is being processed.",
+	}
+
+	return ack, nil
 }

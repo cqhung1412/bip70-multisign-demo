@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -397,15 +398,29 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify transaction (simplified for demo)
+	// Check if payment is already verified for this escrow
+	if escrow.Status == "funded" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, errors.New("payment already verified"),
+			fmt.Sprintf("Escrow ID: %s already has a verified payment with txID: %s", escrow.ID, escrow.PaymentTxID))
+		return
+	}
+
+	// Verify transaction against our validation rules and "blockchain"
 	verified, err := utils.VerifyTransaction(req.TxID)
 	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, err, "Failed to verify transaction")
+		// Provide specific error from transaction verification
+		code := http.StatusBadRequest
+		if strings.Contains(err.Error(), "not found") {
+			// Transaction not found in our known transactions list
+			code = http.StatusNotFound
+		}
+		utils.WriteErrorResponse(w, code, err, fmt.Sprintf("Transaction verification failed: %v", err))
 		return
 	}
 
 	if !verified {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, errors.New("invalid transaction"), "Transaction could not be verified")
+		utils.WriteErrorResponse(w, http.StatusBadRequest, errors.New("invalid transaction"),
+			"Transaction could not be verified - it may be invalid or have insufficient confirmations")
 		return
 	}
 
