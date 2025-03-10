@@ -304,7 +304,7 @@ The `txid` is the transaction ID from the Bitcoin transaction you submitted in s
 1. `26dd4663518b3e24872fd5635fd889a8a0e1c232b8d488868ac378a0a2d28fb1`
 2. `3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b`
 
-Using any other transaction ID will result in a verification error, as the system now performs proper validation. The verification checks:
+Using any other transaction ID will result in a verification error, as the system performs basic validation. The verification checks:
 
 1. That the transaction ID is in the correct format (64 hexadecimal characters)
 2. That the transaction exists in the "blockchain" (simulated with a list of known transactions)
