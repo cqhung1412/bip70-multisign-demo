@@ -1,6 +1,6 @@
 ```mermaid
 sequenceDiagram
-    participant Customer as Customer
+    actor Customer as Customer
     participant Wallet as Wallet App
     participant Merchant as Merchant Server
     participant Network as Bitcoin P2P Network
