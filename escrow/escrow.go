@@ -32,6 +32,8 @@ type ReleaseRequest struct {
 	EscrowID   string `json:"escrow_id"`
 	PrivateKey string `json:"private_key"`
 	Signature  string `json:"signature"`
+	Party      string `json:"party"` // "buyer", "seller", or "escrow"
+	PublicKey  string `json:"public_key"`
 }
 
 // RefundRequest represents a request to refund funds from escrow
@@ -39,24 +41,36 @@ type RefundRequest struct {
 	EscrowID   string `json:"escrow_id"`
 	PrivateKey string `json:"private_key"`
 	Signature  string `json:"signature"`
+	Party      string `json:"party"` // "buyer", "seller", or "escrow"
+	PublicKey  string `json:"public_key"`
+}
+
+// PartySignature represents a signature from a party
+type PartySignature struct {
+	Party     string    `json:"party"` // "buyer", "seller", or "escrow"
+	Signature string    `json:"signature"`
+	Timestamp time.Time `json:"timestamp"`
+	PublicKey string    `json:"public_key"`
 }
 
 // Escrow represents an escrow transaction
 type Escrow struct {
-	ID              string               `json:"id"`
-	BuyerPubKey     string               `json:"buyer_pubkey"`
-	SellerPubKey    string               `json:"seller_pubkey"`
-	EscrowPubKey    string               `json:"escrow_pubkey"`
-	MultiSigAddress string               `json:"multisig_address"`
-	Amount          int64                `json:"amount"`
-	Description     string               `json:"description,omitempty"`
-	Status          string               `json:"status"`
-	PaymentRequest  utils.PaymentRequest `json:"payment_request"`
-	CreatedAt       time.Time            `json:"created_at"`
-	ExpiresAt       time.Time            `json:"expires_at"`
-	PaymentTxID     string               `json:"payment_txid,omitempty"`
-	ReleaseTxID     string               `json:"release_txid,omitempty"`
-	RefundTxID      string               `json:"refund_txid,omitempty"`
+	ID                string               `json:"id"`
+	BuyerPubKey       string               `json:"buyer_pubkey"`
+	SellerPubKey      string               `json:"seller_pubkey"`
+	EscrowPubKey      string               `json:"escrow_pubkey"`
+	MultiSigAddress   string               `json:"multisig_address"`
+	Amount            int64                `json:"amount"`
+	Description       string               `json:"description,omitempty"`
+	Status            string               `json:"status"`
+	PaymentRequest    utils.PaymentRequest `json:"payment_request"`
+	CreatedAt         time.Time            `json:"created_at"`
+	ExpiresAt         time.Time            `json:"expires_at"`
+	PaymentTxID       string               `json:"payment_txid,omitempty"`
+	ReleaseTxID       string               `json:"release_txid,omitempty"`
+	RefundTxID        string               `json:"refund_txid,omitempty"`
+	ReleaseSignatures []PartySignature     `json:"release_signatures,omitempty"`
+	RefundSignatures  []PartySignature     `json:"refund_signatures,omitempty"`
 }
 
 // CreateEscrow creates a new escrow transaction
@@ -142,8 +156,16 @@ func ReleaseEscrow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate request
-	if req.EscrowID == "" || req.PrivateKey == "" || req.Signature == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, errors.New("missing required fields"), "Escrow ID, private key, and signature are required")
+	if req.EscrowID == "" || req.PrivateKey == "" || req.Signature == "" || req.Party == "" || req.PublicKey == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, errors.New("missing required fields"),
+			"Escrow ID, private key, signature, party type, and public key are required")
+		return
+	}
+
+	// Validate party type
+	if req.Party != "buyer" && req.Party != "seller" && req.Party != "escrow" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, errors.New("invalid party type"),
+			"Party must be one of: buyer, seller, or escrow")
 		return
 	}
 
@@ -158,41 +180,76 @@ func ReleaseEscrow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check escrow status
-	if escrow.Status != "funded" {
+	if escrow.Status != "funded" && escrow.Status != "releasing" {
 		utils.WriteErrorResponse(w,
 			http.StatusBadRequest,
 			errors.New("invalid escrow status"),
-			fmt.Sprintf("Escrow status is %s, must be 'funded' to release", escrow.Status))
+			fmt.Sprintf("Escrow status is %s, must be 'funded' or 'releasing' to process release request", escrow.Status))
 		return
 	}
 
 	// Verify signature (simplified for demo)
 	// In a real app, you would verify that the signature is valid and corresponds to an authorized key
 
-	// Create release transaction (simplified for demo)
-	releaseTransaction, err := utils.CreateTransaction(
-		escrow.MultiSigAddress,
-		escrow.SellerPubKey, // This would be an actual address in a real implementation
-		escrow.Amount-1000,  // Subtract fee
-		req.PrivateKey,
-	)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, err, "Failed to create release transaction")
-		return
+	// Check if this party has already signed
+	for _, sig := range escrow.ReleaseSignatures {
+		if sig.Party == req.Party {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, errors.New("duplicate signature"),
+				fmt.Sprintf("A signature from %s has already been provided", req.Party))
+			return
+		}
 	}
 
-	// Update escrow record
-	escrowsMutex.Lock()
-	escrow.Status = "released"
-	escrow.ReleaseTxID = releaseTransaction.TxID
-	escrows[req.EscrowID] = escrow
-	escrowsMutex.Unlock()
+	// Create new signature record
+	newSignature := PartySignature{
+		Party:     req.Party,
+		Signature: req.Signature,
+		Timestamp: time.Now(),
+		PublicKey: req.PublicKey,
+	}
 
-	log.Printf("Released escrow with ID: %s, TxID: %s", escrow.ID, releaseTransaction.TxID)
+	// Update escrow record with new signature
+	escrowsMutex.Lock()
+	defer escrowsMutex.Unlock()
+
+	// Add the signature
+	escrow.ReleaseSignatures = append(escrow.ReleaseSignatures, newSignature)
+
+	// Check if we have reached the 2-of-3 threshold
+	if len(escrow.ReleaseSignatures) >= 2 {
+		// Create release transaction (simplified for demo)
+		releaseTransaction, err := utils.CreateTransaction(
+			escrow.MultiSigAddress,
+			escrow.SellerPubKey, // This would be an actual address in a real implementation
+			escrow.Amount-1000,  // Subtract fee
+			req.PrivateKey,
+		)
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, err, "Failed to create release transaction")
+			return
+		}
+
+		// Update to released status
+		escrow.Status = "released"
+		escrow.ReleaseTxID = releaseTransaction.TxID
+		log.Printf("Released escrow with ID: %s, TxID: %s", escrow.ID, releaseTransaction.TxID)
+	} else {
+		// Update to releasing status
+		escrow.Status = "releasing"
+		log.Printf("Added release signature for escrow ID: %s from %s", escrow.ID, req.Party)
+	}
+
+	// Save the updated escrow
+	escrows[req.EscrowID] = escrow
+
+	// Response
 	utils.WriteJSONResponse(w, http.StatusOK, map[string]interface{}{
-		"escrow_id": escrow.ID,
-		"status":    escrow.Status,
-		"txid":      releaseTransaction.TxID,
+		"escrow_id":         escrow.ID,
+		"status":            escrow.Status,
+		"txid":              escrow.ReleaseTxID,
+		"signatures_count":  len(escrow.ReleaseSignatures),
+		"signatures_needed": 2,
+		"signatures":        escrow.ReleaseSignatures,
 	})
 }
 
@@ -210,8 +267,16 @@ func RefundEscrow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate request
-	if req.EscrowID == "" || req.PrivateKey == "" || req.Signature == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, errors.New("missing required fields"), "Escrow ID, private key, and signature are required")
+	if req.EscrowID == "" || req.PrivateKey == "" || req.Signature == "" || req.Party == "" || req.PublicKey == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, errors.New("missing required fields"),
+			"Escrow ID, private key, signature, party type, and public key are required")
+		return
+	}
+
+	// Validate party type
+	if req.Party != "buyer" && req.Party != "seller" && req.Party != "escrow" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, errors.New("invalid party type"),
+			"Party must be one of: buyer, seller, or escrow")
 		return
 	}
 
@@ -226,41 +291,76 @@ func RefundEscrow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check escrow status
-	if escrow.Status != "funded" {
+	if escrow.Status != "funded" && escrow.Status != "refunding" {
 		utils.WriteErrorResponse(w,
 			http.StatusBadRequest,
 			errors.New("invalid escrow status"),
-			fmt.Sprintf("Escrow status is %s, must be 'funded' to refund", escrow.Status))
+			fmt.Sprintf("Escrow status is %s, must be 'funded' or 'refunding' to process refund request", escrow.Status))
 		return
 	}
 
 	// Verify signature (simplified for demo)
 	// In a real app, you would verify that the signature is valid and corresponds to an authorized key
 
-	// Create refund transaction (simplified for demo)
-	refundTransaction, err := utils.CreateTransaction(
-		escrow.MultiSigAddress,
-		escrow.BuyerPubKey, // This would be an actual address in a real implementation
-		escrow.Amount-1000, // Subtract fee
-		req.PrivateKey,
-	)
-	if err != nil {
-		utils.WriteErrorResponse(w, http.StatusInternalServerError, err, "Failed to create refund transaction")
-		return
+	// Check if this party has already signed
+	for _, sig := range escrow.RefundSignatures {
+		if sig.Party == req.Party {
+			utils.WriteErrorResponse(w, http.StatusBadRequest, errors.New("duplicate signature"),
+				fmt.Sprintf("A signature from %s has already been provided", req.Party))
+			return
+		}
 	}
 
-	// Update escrow record
-	escrowsMutex.Lock()
-	escrow.Status = "refunded"
-	escrow.RefundTxID = refundTransaction.TxID
-	escrows[req.EscrowID] = escrow
-	escrowsMutex.Unlock()
+	// Create new signature record
+	newSignature := PartySignature{
+		Party:     req.Party,
+		Signature: req.Signature,
+		Timestamp: time.Now(),
+		PublicKey: req.PublicKey,
+	}
 
-	log.Printf("Refunded escrow with ID: %s, TxID: %s", escrow.ID, refundTransaction.TxID)
+	// Update escrow record with new signature
+	escrowsMutex.Lock()
+	defer escrowsMutex.Unlock()
+
+	// Add the signature
+	escrow.RefundSignatures = append(escrow.RefundSignatures, newSignature)
+
+	// Check if we have reached the 2-of-3 threshold
+	if len(escrow.RefundSignatures) >= 2 {
+		// Create refund transaction (simplified for demo)
+		refundTransaction, err := utils.CreateTransaction(
+			escrow.MultiSigAddress,
+			escrow.BuyerPubKey, // This would be an actual address in a real implementation
+			escrow.Amount-1000, // Subtract fee
+			req.PrivateKey,
+		)
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, err, "Failed to create refund transaction")
+			return
+		}
+
+		// Update to refunded status
+		escrow.Status = "refunded"
+		escrow.RefundTxID = refundTransaction.TxID
+		log.Printf("Refunded escrow with ID: %s, TxID: %s", escrow.ID, refundTransaction.TxID)
+	} else {
+		// Update to refunding status
+		escrow.Status = "refunding"
+		log.Printf("Added refund signature for escrow ID: %s from %s", escrow.ID, req.Party)
+	}
+
+	// Save the updated escrow
+	escrows[req.EscrowID] = escrow
+
+	// Response
 	utils.WriteJSONResponse(w, http.StatusOK, map[string]interface{}{
-		"escrow_id": escrow.ID,
-		"status":    escrow.Status,
-		"txid":      refundTransaction.TxID,
+		"escrow_id":         escrow.ID,
+		"status":            escrow.Status,
+		"txid":              escrow.RefundTxID,
+		"signatures_count":  len(escrow.RefundSignatures),
+		"signatures_needed": 2,
+		"signatures":        escrow.RefundSignatures,
 	})
 }
 
@@ -317,11 +417,33 @@ func VerifyPayment(w http.ResponseWriter, r *http.Request) {
 	escrowsMutex.Unlock()
 
 	log.Printf("Payment verified for escrow ID: %s, TxID: %s", escrow.ID, req.TxID)
-	utils.WriteJSONResponse(w, http.StatusOK, map[string]interface{}{
-		"escrow_id": escrow.ID,
-		"status":    escrow.Status,
-		"txid":      req.TxID,
-	})
+
+	// Create comprehensive response with all details
+	response := map[string]interface{}{
+		"escrow_id":        escrow.ID,
+		"status":           escrow.Status,
+		"payment_txid":     req.TxID,
+		"multisig_address": escrow.MultiSigAddress,
+		"amount":           escrow.Amount,
+		"buyer_pubkey":     escrow.BuyerPubKey,
+		"seller_pubkey":    escrow.SellerPubKey,
+		"escrow_pubkey":    escrow.EscrowPubKey,
+		"created_at":       escrow.CreatedAt,
+		"expires_at":       escrow.ExpiresAt,
+	}
+
+	// Add signatures information if any exists
+	if len(escrow.ReleaseSignatures) > 0 {
+		response["release_signatures"] = escrow.ReleaseSignatures
+		response["release_signatures_count"] = len(escrow.ReleaseSignatures)
+	}
+
+	if len(escrow.RefundSignatures) > 0 {
+		response["refund_signatures"] = escrow.RefundSignatures
+		response["refund_signatures_count"] = len(escrow.RefundSignatures)
+	}
+
+	utils.WriteJSONResponse(w, http.StatusOK, response)
 }
 
 // GetEscrow gets an escrow by ID
@@ -348,5 +470,58 @@ func GetEscrow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSONResponse(w, http.StatusOK, escrow)
+	// Create comprehensive response with all details
+	response := map[string]interface{}{
+		"escrow_id":        escrow.ID,
+		"status":           escrow.Status,
+		"multisig_address": escrow.MultiSigAddress,
+		"amount":           escrow.Amount,
+		"buyer_pubkey":     escrow.BuyerPubKey,
+		"seller_pubkey":    escrow.SellerPubKey,
+		"escrow_pubkey":    escrow.EscrowPubKey,
+		"created_at":       escrow.CreatedAt,
+		"expires_at":       escrow.ExpiresAt,
+		"description":      escrow.Description,
+		"payment_request":  escrow.PaymentRequest,
+	}
+
+	// Add transaction IDs if they exist
+	if escrow.PaymentTxID != "" {
+		response["payment_txid"] = escrow.PaymentTxID
+	}
+
+	if escrow.ReleaseTxID != "" {
+		response["release_txid"] = escrow.ReleaseTxID
+	}
+
+	if escrow.RefundTxID != "" {
+		response["refund_txid"] = escrow.RefundTxID
+	}
+
+	// Add signatures information if any exists
+	if len(escrow.ReleaseSignatures) > 0 {
+		response["release_signatures"] = escrow.ReleaseSignatures
+		response["release_signatures_count"] = len(escrow.ReleaseSignatures)
+
+		// For convenience, list of parties that have signed
+		parties := make([]string, 0, len(escrow.ReleaseSignatures))
+		for _, sig := range escrow.ReleaseSignatures {
+			parties = append(parties, sig.Party)
+		}
+		response["release_parties"] = parties
+	}
+
+	if len(escrow.RefundSignatures) > 0 {
+		response["refund_signatures"] = escrow.RefundSignatures
+		response["refund_signatures_count"] = len(escrow.RefundSignatures)
+
+		// For convenience, list of parties that have signed
+		parties := make([]string, 0, len(escrow.RefundSignatures))
+		for _, sig := range escrow.RefundSignatures {
+			parties = append(parties, sig.Party)
+		}
+		response["refund_parties"] = parties
+	}
+
+	utils.WriteJSONResponse(w, http.StatusOK, response)
 }

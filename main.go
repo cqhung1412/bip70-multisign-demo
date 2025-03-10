@@ -1,11 +1,11 @@
 package main
 
 import (
+	"escrow-service/escrow"
+	"escrow-service/utils"
 	"log"
 	"net/http"
 	"os"
-	"escrow-service/escrow"
-	"escrow-service/utils"
 )
 
 // Define API routes
@@ -16,7 +16,7 @@ func setupRoutes() {
 	http.HandleFunc("/api/escrow/refund", escrow.RefundEscrow)
 	http.HandleFunc("/api/escrow/verify-payment", escrow.VerifyPayment)
 	http.HandleFunc("/api/escrow/get", escrow.GetEscrow)
-	
+
 	// Health check endpoint
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		utils.WriteJSONResponse(w, http.StatusOK, map[string]string{"status": "healthy"})
@@ -25,15 +25,15 @@ func setupRoutes() {
 	// 404 handler for undefined routes
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
-			utils.WriteErrorResponse(w, http.StatusNotFound, 
+			utils.WriteErrorResponse(w, http.StatusNotFound,
 				os.ErrNotExist, "Endpoint not found")
 			return
 		}
-		
+
 		// Root endpoint returns API info
 		utils.WriteJSONResponse(w, http.StatusOK, map[string]interface{}{
-			"name": "Escrow Service API",
-			"version": "1.0.0",
+			"name":        "Escrow Service API",
+			"version":     "1.0.0",
 			"description": "A Bitcoin escrow service using BIP70 and MultiSign",
 			"endpoints": []string{
 				"/api/escrow/create",
@@ -54,13 +54,13 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
+
 		// Handle preflight requests
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		// Call the next handler
 		next.ServeHTTP(w, r)
 	})
