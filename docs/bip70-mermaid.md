@@ -1,8 +1,8 @@
 ```mermaid
 sequenceDiagram
-    participant Customer as 'Customer's Wallet'
-    participant Merchant as 'Merchant's Server'
-    participant Network as 'Bitcoin Network'
+    participant Customer as (Customer's Wallet)
+    participant Merchant as (Merchant's Server)
+    participant Network as (Bitcoin Network)
 
     Note over Customer,Merchant: Customer initiates payment
     Customer->>Merchant: Request payment details (BIP72 URI)
