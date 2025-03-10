@@ -1,13 +1,26 @@
 ## Application 1: Secure E-Commerce Payments for High-Value Transactions
 
 ```mermaid
-flowchart LR
-    A[Customer Selects Item] ---|Initiates Payment| B[Merchant Generates BIP70 Request]
-    B ---|Signed Request with Multisig Address| C[Customer's Wallet]
-    C ---|Verifies Merchant Identity & Payment Details| D[Customer Approves Payment]
-    D ---|Sends Payment to Multisig Address| E[2-of-3 Multisig Escrow]
-    E ---|Requires Signatures from Customer, Merchant, and Escrow| F[Funds Released to Merchant]
-    F ---|Refund Process Initiated if Necessary| G[Refund via BIP70 Refund Address]
+sequenceDiagram
+    participant Customer as Customer
+    participant Merchant as Merchant
+    participant Escrow as Escrow Service
+    participant BitcoinNetwork as Bitcoin Network
+
+    Note over Customer,Merchant: Customer selects item for purchase
+    Customer->>Merchant: Initiate payment request
+    Merchant->>Customer: Generate BIP70 payment request with multisig address
+    Customer->>Customer: Verify merchant identity and payment details
+    Customer->>BitcoinNetwork: Send payment to multisig address
+    BitcoinNetwork->>Escrow: Funds locked in 2-of-3 multisig escrow
+    Escrow->>Escrow: Wait for signatures from customer, merchant, and escrow
+    Customer->>Escrow: Sign transaction
+    Merchant->>Escrow: Sign transaction
+    Escrow->>Escrow: Sign transaction
+    Escrow->>BitcoinNetwork: Release funds to merchant
+    BitcoinNetwork->>Merchant: Funds received
+    Note over Merchant,Customer: Refund initiated if necessary via BIP70 refund address
+
 ```
 
 ## Application 2: Cryptocurrency Exchange Cold Storage with BIP70 Withdrawals
@@ -39,3 +52,5 @@ flowchart LR
     C -->|Funds Released on Scheduled Payday|> D[Employee Receives Salary]
     D -->|Transaction Confirmation|> E[Payroll System Updates]
 ```
+```
+
