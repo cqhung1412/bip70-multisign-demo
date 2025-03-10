@@ -1,8 +1,8 @@
 ```mermaid
 sequenceDiagram
-    participant User1 as Key Holder 1
-    participant User2 as Key Holder 2
-    participant User3 as Key Holder 3
+    actor User1 as Key Holder 1
+    actor User2 as Key Holder 2
+    actor User3 as Key Holder 3
     participant Wallet as Multisig Wallet
     participant Blockchain as Blockchain Network
 
