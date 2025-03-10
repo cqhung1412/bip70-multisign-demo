@@ -3,11 +3,11 @@
 ```mermaid
 flowchart LR
     A[Customer Selects Item] --|Initiates Payment|--- B[Merchant Generates BIP70 Request]
-    B -->|Signed Request with Multisig Address|> C[Customer's Wallet]
-    C -->|Verifies Merchant Identity & Payment Details|> D[Customer Approves Payment]
-    D -->|Sends Payment to Multisig Address|> E[2-of-3 Multisig Escrow]
-    E -->|Requires Signatures from Customer, Merchant, and Escrow|> F[Funds Released to Merchant]
-    F -->|Refund Process Initiated if Necessary|> G[Refund via BIP70 Refund Address]
+    B --|Signed Request with Multisig Address|--- C[Customer's Wallet]
+    C --|Verifies Merchant Identity & Payment Details|--- D[Customer Approves Payment]
+    D --|Sends Payment to Multisig Address|--- E[2-of-3 Multisig Escrow]
+    E --|Requires Signatures from Customer, Merchant, and Escrow|--- F[Funds Released to Merchant]
+    F --|Refund Process Initiated if Necessary|--- G[Refund via BIP70 Refund Address]
 ```
 
 ## Application 2: Cryptocurrency Exchange Cold Storage with BIP70 Withdrawals
