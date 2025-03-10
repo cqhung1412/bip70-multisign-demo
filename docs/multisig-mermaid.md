@@ -6,7 +6,7 @@ sequenceDiagram
     participant Wallet as Multisig Wallet
     participant Blockchain as Blockchain Network
 
-    Note over User1,User2,User3: Generate and share public keys
+    Note over User1,User3: Generate and share public keys
     User1->>Wallet: Send public key
     User2->>Wallet: Send public key
     User3->>Wallet: Send public key
