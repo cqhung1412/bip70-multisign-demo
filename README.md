@@ -298,7 +298,6 @@ curl -X POST http://localhost:8080/api/escrow/verify-payment \
 }
 ```
 
-
 The `txid` is the transaction ID from the Bitcoin transaction you submitted in step 3. For testing purposes, the following transaction IDs are pre-validated in the system:
 
 1. `1`
@@ -570,12 +569,65 @@ Please follow the steps in the [Step-by-Step Guide](#step-by-step-guide) to crea
     - `amount`: Amount in satoshis that can be refunded to this output
     - `script`: The Bitcoin script that defines how the refund can be claimed (usually a P2PKH or P2SH script)
 - In most wallet implementations, this field is handled automatically and you don't need to specify it manually
-- In a production environment, you would need to:
-  - Connect to a Bitcoin node for transaction validation
-  - Implement proper key management and security
-  - Use a persistent database instead of in-memory storage
-  - Add proper authentication and authorization
-  - Use protobuf serialization for BIP70 messages
-  - Implement X.509 certificate signing and validation
-  - Handle transaction fees properly
-  - Add actual signature validation against public keys
+
+## Missing Features and Limitations
+
+### BIP70 Limitations
+
+- **No Protobuf Serialization**: Uses JSON instead of Protocol Buffers as specified in the BIP70 standard
+- **No X.509 Certificate Support**: Lacks PKI-based merchant authentication via X.509 certificates
+- **No Certificate Chain Validation**: Cannot verify merchant identity through certificate chain
+- **Limited Payment Verification**: Simplified transaction verification without blockchain confirmation checks
+- **No Payment Protocol Extensions**: Does not support optional BIP70 extensions
+- **Limited Error Handling**: Missing detailed error codes and payment-specific error messages
+- **No Refund Address Processing**: `refund_to` field exists but isn't fully implemented
+
+### MultiSign Limitations
+
+- **Simplified Signature Validation**: Doesn't actually verify signatures cryptographically
+- **No Transaction Building**: Doesn't construct actual Bitcoin transactions with proper inputs/outputs
+- **No Fee Calculation**: Uses fixed fee without dynamic fee estimation
+- **No Redeem Script Handling**: Lacks proper handling of redeem scripts for P2SH transactions
+- **Limited UTXO Management**: No management of unspent transaction outputs
+- **No Script Validation**: Doesn't validate scripts against Bitcoin consensus rules
+- **No Partially Signed Bitcoin Transaction (PSBT) Support**: Uses simplified signing instead of PSBTs
+
+## Future Considerations
+
+### Security Enhancements
+
+- Implement proper cryptographic signature validation
+- Add X.509 certificate support for merchant authentication
+- Implement HTTPS for secure API communication
+- Add proper key management and secure storage
+- Implement rate limiting and DDoS protection
+
+### Technical Improvements
+
+- Replace JSON with Protocol Buffers for BIP70 compliance
+- Connect to a Bitcoin node for proper transaction validation
+- Implement Partially Signed Bitcoin Transactions (PSBT) support
+- Add dynamic fee estimation
+- Implement proper UTXO management
+- Add support for different address types (P2WPKH, P2WSH, etc.)
+- Create real Bitcoin transactions with proper inputs and outputs
+
+### Functionality Extensions
+
+- Add dispute resolution mechanisms
+- Implement timelock functionality for automatic refunds
+- Add support for multiple cryptocurrencies
+- Implement webhook notifications for status changes
+- Add admin dashboard for escrow service management
+- Implement persistent storage with a proper database
+- Add comprehensive logging and monitoring
+- Implement user authentication and access control
+- Add transaction history and reporting features
+
+### Scalability Considerations
+
+- Implement proper database with transaction support
+- Add caching layer for frequently accessed data
+- Design for horizontal scaling
+- Implement proper error handling and recovery mechanisms
+- Add comprehensive test coverage (unit, integration, and end-to-end tests)

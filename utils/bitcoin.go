@@ -78,6 +78,15 @@ type Transaction struct {
 
 // CreateMultiSig creates a 2-of-3 multisig address (buyer, seller, escrow service)
 func CreateMultiSig(buyerPubKey, sellerPubKey, escrowPubKey string) (string, error) {
+	// LIMITATIONS:
+	// The current implementation has several limitations:
+	// - Only supports 2-of-3 multisig (no custom M-of-N configurations)
+	// - Only creates P2SH addresses (no support for P2WSH or P2SH-P2WSH)
+	// - Does not return the redeem script which is needed for spending
+	// - Does not verify that the public keys are valid secp256k1 public keys
+	// - No support for compressed vs uncompressed public key format detection
+	// - Fixed to testnet (no support for mainnet or regtest)
+
 	// Decode public keys
 	buyerPubKeyBytes, err := hex.DecodeString(buyerPubKey)
 	if err != nil {
@@ -124,6 +133,13 @@ func CreateMultiSig(buyerPubKey, sellerPubKey, escrowPubKey string) (string, err
 	if err != nil {
 		return "", fmt.Errorf("failed to create script hash: %v", err)
 	}
+
+	// NOTE: In a production environment, you would want to:
+	// 1. Store the redeem script along with the address
+	// 2. Consider using native segwit P2WSH or nested segwit P2SH-P2WSH for lower fees
+	// 3. Support different network types (mainnet, testnet, regtest)
+	// 4. Add more comprehensive validation of public keys
+	// 5. Support custom M-of-N configurations beyond 2-of-3
 
 	return scriptHash.EncodeAddress(), nil
 }
@@ -293,8 +309,28 @@ func VerifyTransaction(txID string) (bool, error) {
 
 // SignTransaction signs a transaction with the provided private key
 func SignTransaction(txHex string, privateKey string) (string, error) {
-	// This is a simplified implementation
-	// In a real app, you would use btcd/txscript to sign
+	// LIMITATIONS:
+	// This is a highly simplified mock implementation with many limitations:
+	// - No actual cryptographic signing takes place
+	// - No validation of the transaction format
+	// - No checking that the private key corresponds to an address in the transaction
+	// - No support for different signature hash types (SIGHASH_ALL, SIGHASH_SINGLE, etc.)
+	// - No segwit support
+	// - No P2SH script execution or validation
+	// - No handling of different address types
+	// - No Partially Signed Bitcoin Transaction (PSBT) support
+	
+	// In a production implementation, you would:
+	// 1. Parse the transaction from hex
+	// 2. Identify which inputs need to be signed
+	// 3. Verify the private key can sign those inputs
+	// 4. For each input:
+	//    a. Create the correct signature hash based on the previous output being spent
+	//    b. Sign the hash with the private key
+	//    c. Create the proper script signature
+	//    d. Add the signature to the transaction
+	// 5. Verify the signed transaction is valid
+	// 6. Consider using the PSBT format for safer signing
 
 	if txHex == "" {
 		return "", errors.New("transaction hex is empty")
@@ -304,7 +340,7 @@ func SignTransaction(txHex string, privateKey string) (string, error) {
 		return "", errors.New("private key is empty")
 	}
 
-	// For demo, we'll just return a signed tx hex
+	// For demo purposes only - this doesn't actually sign anything
 	return "signed_" + txHex, nil
 }
 

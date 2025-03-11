@@ -189,8 +189,12 @@ func ReleaseEscrow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify signature (simplified for demo)
-	// In a real app, you would verify that the signature is valid and corresponds to an authorized key
+	// LIMITATION: No cryptographic signature verification
+	// In a production implementation:
+	// 1. Verify that the signature is cryptographically valid for the transaction
+	// 2. Verify that the public key matches the one provided during escrow creation
+	// 3. Ensure the signature covers the correct transaction data
+	// 4. Validate the signature against Bitcoin consensus rules
 
 	// Check if this party has already signed
 	for _, sig := range escrow.ReleaseSignatures {
@@ -218,11 +222,20 @@ func ReleaseEscrow(w http.ResponseWriter, r *http.Request) {
 
 	// Check if we have reached the 2-of-3 threshold
 	if len(escrow.ReleaseSignatures) >= 2 {
+		// LIMITATION: Simplified transaction creation
+		// In a production implementation:
+		// 1. Construct a proper Bitcoin transaction with correct inputs and outputs
+		// 2. Use UTXO management to track available funds
+		// 3. Apply proper fee estimation based on transaction size and network conditions
+		// 4. Create and sign a proper multisig transaction using the redeem script
+		// 5. Broadcast the transaction to the Bitcoin network
+		// 6. Use Partially Signed Bitcoin Transactions (PSBT) for more robust handling
+		
 		// Create release transaction (simplified for demo)
 		releaseTransaction, err := utils.CreateTransaction(
 			escrow.MultiSigAddress,
 			escrow.SellerPubKey, // This would be an actual address in a real implementation
-			escrow.Amount-1000,  // Subtract fee
+			escrow.Amount-1000,  // Subtract fee (fixed fee, not dynamic)
 			req.PrivateKey,
 		)
 		if err != nil {

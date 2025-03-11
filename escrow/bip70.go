@@ -99,21 +99,29 @@ func VerifyBIP70Payment(paymentRequestID string, txID string) (bool, error) {
 		return false, fmt.Errorf("payment request ID and transaction ID are required")
 	}
 
-	// In a real implementation, you would:
+	// LIMITATIONS:
+	// This is a simplified implementation with several limitations:
+	// - No blockchain connection to verify transaction existence
+	// - No verification that transaction pays to the correct address
+	// - No validation of payment amount
+	// - No confirmation checking
+	// - No mempool monitoring for unconfirmed transactions
+	// - No actual transaction parsing or script validation
+	
+	// In a production implementation, you would:
 	// 1. Look up the payment request in your database
 	// 2. Verify the payment request exists and hasn't already been paid
-	// 3. Check the transaction satisfies the payment criteria (amounts, addresses, etc.)
+	// 3. Connect to a Bitcoin node to verify the transaction exists
+	// 4. Parse the transaction to ensure it pays to the correct address(es)
+	// 5. Verify the payment amount matches the requested amount
+	// 6. Check that the transaction has enough confirmations
+	// 7. Validate transaction inputs and outputs according to Bitcoin consensus rules
 
-	// For our purpose, we'll just check if the txID is valid and in our "blockchain"
+	// For our demo purpose, we'll just check if the txID is valid and in our mock "blockchain"
 	verified, err := utils.VerifyTransaction(txID)
 	if err != nil {
 		return false, fmt.Errorf("transaction verification failed: %v", err)
 	}
-
-	// Additional checks could be added here, such as:
-	// - Ensuring the transaction pays to the correct address(es)
-	// - Checking the payment amount matches the requested amount
-	// - Verifying the transaction has enough confirmations
 
 	return verified, nil
 }
